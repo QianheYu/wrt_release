@@ -1,0 +1,7 @@
+#!/bin/bash
+if [[ -z "$(uci get dockerd)" ]]; then
+  mkdir -p /mnt/mmcblk0p27/docker
+  uci set dockerd.globals.data_root='/mnt/mmcblk0p27/docker/'
+  uci commit
+  /etc/init.d/dockerd restart
+fi

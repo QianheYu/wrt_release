@@ -1,0 +1,11 @@
+#!/bin/bash
+uci set wireless.default_radio0.ssid='JDC_AX1800PRO'
+#uci set wireless.default_radio0.encryption='none'
+uci set wireless.default_radio0.encryption='sae-mixed'
+uci set wireless.default_radio0.ifname='5G'
+
+uci set wireless.default_radio1.ssid='JDC_AX1800PRO'
+#uci set wireless.default_radio1.encryption='none'
+uci set wireless.default_radio1.encryption='sae-mixed'
+uci set wireless.default_radio1.ifname='2.4G'
+uci commit

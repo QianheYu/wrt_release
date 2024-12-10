@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ -z "$(uci get qbittorrent)" ]]; then
+  mkdir -p /mnt/mmcblk0p27/qbittorrent
+  uci set qbittorrent.config.download_dir='/mnt/mmcblk0p27/qbittorrent'
+  uci commit
+fi

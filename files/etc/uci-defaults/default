@@ -1,0 +1,35 @@
+#!/bin/bash
+sed -i 's/ifname/device/g' /etc/config/network
+
+uci set network.lan.ipaddr=192.168.68.1
+uci commit
+
+# ipv6 default settings
+#uci set network.lan.ip6assign='64'
+uci set dhcp.lan.ra_default='1'
+uci set dhcp.lan.ra_slaac=0
+uci add_list dhcp.lan.ra_flags='managed-config'
+uci add_list dhcp.lan.ra_flags='home-agent'
+uci set dhcp.lan.ra='hybrid'
+uci set dhcp.lan.ndp='hybrid'
+uci set dhcp.lan.dhcpv6='hybrid'
+uci commit
+
+# Set Firewall NAT6
+natid=$(uci add firewall nat)
+uci set firewall.$natid.name='NAT6'
+uci set firewall.$natid.family=ipv6
+uci set firewall.$natid.src=wan
+uci set firewall.$natid.target=MASQUERADE
+uci set firewall.$natid.proto=all
+uci set firewall.$natid.enabled=0
+
+# Copy NAT6 Command to /usr/sbin
+#find /rom/etc/uci-defaults -type f | grep nat6 | xargs -I {} cp {} /usr/sbin
+cp /rom/etc/uci-defaults/nat6 /usr/sbin
+cp /rom/etc/uci-defaults/dhcpv6-mod /usr/sbin
+cp /rom/etc/uci-defaults/install-software /usr/sbin
+# if [[ -z "$(uci get mwan3)" ]]; then
+#     uci set mwan3.wan6.enabled='1'
+#     uci commit
+# fi

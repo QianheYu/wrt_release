@@ -1,0 +1,2 @@
+#!/bin/bash
+opkg update && opkg install luci-i18n-qbittorrent-zh-cn luci-i18n-alist-zh-cn luci-i18n-syncthing-zh-cn luci-i18n-syncthing-zh-cn luci-i18n-rclone-zh-cn

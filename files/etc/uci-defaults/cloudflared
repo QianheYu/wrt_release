@@ -1,0 +1,6 @@
+#!/bin/bash
+# Enable Cloudflare Tunnel default
+uci set cloudflared.config.enabled=1
+uci set cloudflared.config.token=''
+uci set cloudflared.config.region='us'
+uci commit

@@ -1,0 +1,6 @@
+#!/bin/bash
+if [[ -z "$(uci get aria2)" ]]; then
+  mkdir -p /mnt/mmcblk0p27/aria2
+  uci set aria2.main.dir='/mnt/mmcblk0p27/aria2'
+  uci commit
+fi

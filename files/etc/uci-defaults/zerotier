@@ -1,0 +1,5 @@
+#!/bin/bash
+uci set zerotier.sample_config.enabled=1
+uci set zerotier.sample_config.nat=1
+uci set zerotier.sample_config.join=''
+uci commit

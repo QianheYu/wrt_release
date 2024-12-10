@@ -1,0 +1,35 @@
+#!/bin/bash
+NAT6Script="/rom/etc/uci-defaults/nat6"
+CreateScript="$NAT6Script create"
+RemoveScript="$NAT6Script remove"
+EnableNat6="$NAT6Script enable"
+DisableNat6="$NAT6Script disable"
+
+# 将开启和关闭NAT6命令添加到UCI的自定义命令插件中
+enabledid=$(uci add luci command)
+disabledid=$(uci add luci command)
+createnat6=$(uci add luci command)
+removenat6=$(uci add luci command)
+uci set luci.${enabledid}.name='开启NAT6 参数: 端口'
+uci set luci.${enabledid}.command="${EnableNat6}"
+uci set luci.${enabledid}.param=1
+uci set luci.${disabledid}.name='关闭NAT6 参数: 端口'
+uci set luci.${disabledid}.command="${DisableNat6}"
+uci set luci.${disabledid}.param=1
+uci set luci.${createnat6}.name='创建NAT6 参数: 端口'
+uci set luci.${createnat6}.command="${CreateScript}"
+uci set luci.${createnat6}.param=1
+uci set luci.${removenat6}.name='删除NAT6 参数: 端口'
+uci set luci.${removenat6}.command="${RemoveScript}"
+uci set luci.${removenat6}.param=1
+# uci commit
+
+natid=$(uci add luci command)
+uci set luci.${natid}.name='NAT6 参数: 操作(create/remove/enable/disable) 接口(wan6)'
+uci set luci.${natid}.command="${NAT6Script}"
+uci set luci.${natid}.param=1
+
+installid=$(uci add luci command)
+uci set luci.${installid}.name='安装常用软件'
+uci set luci.${installid}.command='/rom/etc/uci-defaults/install-software'
+uci commit
