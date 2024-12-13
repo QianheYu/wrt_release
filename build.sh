@@ -4,6 +4,7 @@ set -e
 
 source /etc/profile
 BASE_PATH=$(cd $(dirname $0) && pwd)
+UCI_DEFAULTS_PATH="$BASE_PATH/file"
 
 Dev=$1
 Build_Mod=$2
@@ -36,6 +37,10 @@ COMMIT_HASH=${COMMIT_HASH:-none}
 $BASE_PATH/update.sh "$REPO_URL" "$REPO_BRANCH" "$BASE_PATH/$BUILD_DIR" "$COMMIT_HASH"
 
 \cp -f "$CONFIG_FILE" "$BASE_PATH/$BUILD_DIR/.config"
+
+if [[ -d "$UCI_DEFAULTS_PATH" ]]; then
+    cp -r $UCI_DEFAULTS_PATH $BUILD_DIR
+fi
 
 cd "$BASE_PATH/$BUILD_DIR"
 make defconfig
