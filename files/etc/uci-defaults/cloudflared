@@ -1,5 +1,10 @@
 #!/bin/bash
 # Enable Cloudflare Tunnel default
+if [[ -z "$(opkg list-installed cloudflared)" ]]; then
+    echo "cloudflared 未安装"
+    exit 1
+fi
+
 uci set cloudflared.config.enabled=1
 uci set cloudflared.config.token=''
 uci set cloudflared.config.region='us'

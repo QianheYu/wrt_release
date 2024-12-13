@@ -16,12 +16,12 @@
 remove_nat() {
     INTERFACE=$1
     # 禁用IPv6静态路由
-    disable_nat() $INTERFACE
+    disable_nat $INTERFACE
     # 删除已经禁用的IPv6静态路由
     uci show network | grep -Eo 'network.@route6\[[0-9]*\]' | sort -u | \
     while read -r line; do
         if [[ "$(uci get ${line}.interface)" == "$INTERFACE" ]]; then
-                uci del ${line}
+            uci del ${line}
             break
         fi
     done
@@ -30,6 +30,7 @@ remove_nat() {
 
 # 禁用NAT6
 disable_nat() {
+    INTERFACE=$1
     # 1. 为接口禁用IPv6静态路由
     uci show network | grep -Eo 'network.@route6\[[0-9]*\]' | sort -u | \
     while read -r line; do
@@ -41,6 +42,7 @@ disable_nat() {
     done
     # 开启wan接口前缀申请
     uci set network.$INTERFACE.reqprefix=auto
+    # uci set network.wan6.delegate='1'
     uci commit
     # 2. 如果不存在启用的IPv6静态路由则关闭IPv6 NAT规则并设置DHCPv6为hybrid模式
     route6_status=$(
@@ -59,13 +61,13 @@ disable_nat() {
         while read -r line; do
             if [[ "$(uci get ${line}.src)" == "wan" && "$(uci get ${line}.family)"="ipv6" && "$(uci get ${line}.target)" = "MASQUERADE" ]]; then
                 uci set ${line}.enabled=0
-                echo "$line"
                 break
             fi
         done
         dhcpv6-mod hybrid
     fi
     uci commit
+    ifup $INTERFACE
 }
 
 
@@ -83,15 +85,17 @@ enable_nat() {
             fi
         done
     )
-    if [[ -z "route6" ]]; then
+    if [[ -z "$route6" ]]; then
         eval route6=$(uci add network route6)
-        uci set network.$ipv6route.interface=$INTERFACE
-        uci set network.$ipv6route.target='::/0'
-        uci set network.$ipv6route.gateway='fe80::1'
-        #    uci set network.$ipv6route.disabled=1
+        uci set network.$route6.interface=$INTERFACE
+        uci set network.$route6.target='::/0'
+        uci set network.$route6.gateway='fe80::1'
+        #    uci set network.$route6.disabled=1
+        uci set network.$route6.metric='1'
     fi
     # 关闭wan接口前缀申请
     uci set network.$INTERFACE.reqprefix=no
+    # uci set network.wan6.delegate='0'
     # 2. 开启IPv6 NAT规则（该规则由default设置，处于未启用状态名称为nat6）
     nat_status=$(
         uci show firewall | grep -Eo 'firewall.@nat\[[0-9]*\]' | sort -u | \
@@ -116,6 +120,7 @@ enable_nat() {
     uci commit
     # 3. 设置DHCPv6为server模式
     dhcpv6-mod server
+    ifup $INTERFACE
 }
 
 # 检查是否提供了操作和接口名
@@ -147,3 +152,4 @@ case $operation in
         exit 1
         ;;
 esac
+echo "提示：如果安装了mwan3(链路聚合与负载均衡)需到mwan3配置中添加并启用接口${interface}否则将无法使用IPv6"

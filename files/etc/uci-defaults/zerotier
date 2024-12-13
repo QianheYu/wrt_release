@@ -1,4 +1,9 @@
 #!/bin/bash
+if [[ -z "$(opkg list-installed zerotier)" ]]; then
+    echo "zerotier 未安装"
+    exit 1
+fi
+
 uci set zerotier.sample_config.enabled=1
 uci set zerotier.sample_config.nat=1
 uci set zerotier.sample_config.join=''

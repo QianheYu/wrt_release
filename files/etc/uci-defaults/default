@@ -16,20 +16,29 @@ uci set dhcp.lan.dhcpv6='hybrid'
 uci commit
 
 # Set Firewall NAT6
-natid=$(uci add firewall nat)
-uci set firewall.$natid.name='NAT6'
-uci set firewall.$natid.family=ipv6
-uci set firewall.$natid.src=wan
-uci set firewall.$natid.target=MASQUERADE
-uci set firewall.$natid.proto=all
-uci set firewall.$natid.enabled=0
+nat_status=$(
+    uci show firewall | grep -Eo 'firewall.@nat\[[0-9]*\]' | sort -u | \
+    while read -r line; do
+        if [[ "$(uci get ${line}.src)" == "wan" && "$(uci get ${line}.family)"="ipv6" && "$(uci get ${line}.target)" = "MASQUERADE" ]]; then
+            uci set ${line}.enabled=1
+            echo "$line"
+            break
+        fi
+    done
+)
 
+if [[ -z "$nat_status" ]]; then
+    natid=$(uci add firewall nat)
+    uci set firewall.$natid.name='NAT6'
+    uci set firewall.$natid.family=ipv6
+    uci set firewall.$natid.src=wan
+    uci set firewall.$natid.target=MASQUERADE
+    uci set firewall.$natid.proto=all
+    uci set firewall.$natid.enabled=0
+fi
 # Copy NAT6 Command to /usr/sbin
 #find /rom/etc/uci-defaults -type f | grep nat6 | xargs -I {} cp {} /usr/sbin
 cp /rom/etc/uci-defaults/nat6 /usr/sbin
 cp /rom/etc/uci-defaults/dhcpv6-mod /usr/sbin
 cp /rom/etc/uci-defaults/install-software /usr/sbin
-# if [[ -z "$(uci get mwan3)" ]]; then
-#     uci set mwan3.wan6.enabled='1'
-#     uci commit
-# fi
+bash /rom/etc/uci-defaults/mwan3 wan6

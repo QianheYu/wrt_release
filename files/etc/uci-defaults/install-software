@@ -1,2 +1,6 @@
 #!/bin/bash
-opkg update && opkg install luci-i18n-qbittorrent-zh-cn luci-i18n-alist-zh-cn luci-i18n-syncthing-zh-cn luci-i18n-syncthing-zh-cn luci-i18n-rclone-zh-cn
+opkg update && opkg install luci-i18n-aria2-zh-cn luci-i18n-qbittorrent-zh-cn luci-i18n-alist-zh-cn luci-i18n-syncthing-zh-cn luci-i18n-verysync-zh-cn luci-i18n-rclone-zh-cn
+bash /rom/etc/uci-defaults/qbittorrent
+bash /rom/etc/uci-defaults/aria2
+bash /rom/etc/uci-defaults/rclone
+echo "请重新登陆以刷新菜单列表"

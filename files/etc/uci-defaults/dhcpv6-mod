@@ -10,7 +10,7 @@ fi
 operation=$1
 
 case $operation in
-    nat)
+    server)
         # 创建NAT配置
         uci set dhcp.lan.ra_default=2
         uci set dhcp.lan.ra='server'
@@ -20,7 +20,7 @@ case $operation in
         fi
         uci commit
         ;;
-    default)
+    default|hybrid)
         # 移除NAT配置
         uci set dhcp.lan.ra_default=1
         uci set dhcp.lan.ra='hybrid'

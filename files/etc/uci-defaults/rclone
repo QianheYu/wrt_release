@@ -1,0 +1,11 @@
+#!/bin/bash
+# 修改rclone启动的用户，从rclone改为root
+script="/etc/init.d/rclone"
+
+if [[ -z $(opkg list-installed rclone) ]]; then
+    echo "luci-app-rclone 未安装"
+    exit 1
+fi
+
+sed -i 's/procd_set_param\ user\ rclone/procd_set_param\ user\ root/g' $script
+sed -i 's/procd_set_param\ group\ rclone/procd_set_param\ group\ root/g' $script
