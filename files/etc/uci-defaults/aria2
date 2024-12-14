@@ -4,6 +4,8 @@ if [[ -z "$(opkg list-installed luci-app-aria2)" ]]; then
   exit 1
 fi
 
-mkdir -p /mnt/mmcblk0p27/aria2
-uci set aria2.main.dir='/mnt/mmcblk0p27/aria2'
-uci commit
+if [[ "$(uci get aria2.main.dir)" == "/mnt/sda1/aria2" ]]; then
+  mkdir -p /mnt/mmcblk0p27/aria2
+  uci set aria2.main.dir='/mnt/mmcblk0p27/aria2'
+  uci commit
+fi

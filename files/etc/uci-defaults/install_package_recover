@@ -17,3 +17,8 @@ while IFS=$'\t' read -r package; do
 done
 
 echo "所有安装包恢复完成！"
+
+bash /rom/etc/uci-defaults/rclone
+bash /rom/etc/uci-defaults/qbittorrent
+bash /rom/etc/uci-defaults/aria2
+bash /rom/etc/uci-defaults/dockerd

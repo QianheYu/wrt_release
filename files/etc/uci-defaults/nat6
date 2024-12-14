@@ -120,6 +120,7 @@ enable_nat() {
     uci commit
     # 3. 设置DHCPv6为server模式
     dhcpv6-mod server
+    bash /rom/etc/uci-defaults/mwan3 $INTERFACE
     ifup $INTERFACE
 }
 

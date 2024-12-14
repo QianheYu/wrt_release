@@ -4,6 +4,8 @@ if [[ -z "$(opkg list-installed qbittorrent-enhanced-edition)" ]]; then
   exit 1
 fi
 
-mkdir -p /mnt/mmcblk0p27/qbittorrent
-uci set qbittorrent.config.download_dir='/mnt/mmcblk0p27/qbittorrent'
-uci commit
+if [[ "$(uci get qbittorrent.config.download_dir)" == "/mnt/download" ]]; then
+  mkdir -p /mnt/mmcblk0p27/qbittorrent
+  uci set qbittorrent.config.download_dir='/mnt/mmcblk0p27/qbittorrent'
+  uci commit
+fi
