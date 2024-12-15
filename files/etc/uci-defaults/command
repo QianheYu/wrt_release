@@ -4,39 +4,41 @@ if [[ -z "$(opkg list-installed luci-app-commands)" ]]; then
     exit 1
 fi
 
-if [[ -z "$(uci show luci | grep -Eo 'luci.@command\[[0-9]*\]' | sort -u)" ]]; then
-    NAT6Script="/rom/etc/uci-defaults/nat6"
-    CreateScript="$NAT6Script create"
-    RemoveScript="$NAT6Script remove"
-    EnableNat6="$NAT6Script enable"
-    DisableNat6="$NAT6Script disable"
+NAT6_SCRIPT="/rom/etc/uci-defaults/nat6"
+INSTALL_SOFTWARE="/rom/etc/uci-defaults/install-software"
 
-    # 将开启和关闭NAT6命令添加到UCI的自定义命令插件中
-    enabledid=$(uci add luci command)
-    disabledid=$(uci add luci command)
-    createnat6=$(uci add luci command)
-    removenat6=$(uci add luci command)
-    uci set luci.${enabledid}.name='开启NAT6 参数: 端口'
-    uci set luci.${enabledid}.command="${EnableNat6}"
-    uci set luci.${enabledid}.param=1
-    uci set luci.${disabledid}.name='关闭NAT6 参数: 端口'
-    uci set luci.${disabledid}.command="${DisableNat6}"
-    uci set luci.${disabledid}.param=1
-    uci set luci.${createnat6}.name='创建NAT6 参数: 端口'
-    uci set luci.${createnat6}.command="${CreateScript}"
-    uci set luci.${createnat6}.param=1
-    uci set luci.${removenat6}.name='删除NAT6 参数: 端口'
-    uci set luci.${removenat6}.command="${RemoveScript}"
-    uci set luci.${removenat6}.param=1
-    # uci commit
+# 检查NAT命令
+nat6_command_status=$(
+    uci show luci | grep -Eo 'luci.@command\[[0-9]*\]' | sort -u |
+    while read -r line; do
+        if [[ "$(uci get $line.command)" == "$NAT6_SCRIPT" ]]; then
+            echo "$line"
+            break
+        fi
+    done
+)
 
+if [[ -z "$nat6_command_status" ]]; then
     natid=$(uci add luci command)
-    uci set luci.${natid}.name='NAT6 参数: 操作(create/remove/enable/disable) 接口(wan6)'
-    uci set luci.${natid}.command="${NAT6Script}"
-    uci set luci.${natid}.param=1
+    uci set luci.${natid}.name='误删NAT6重新创建'
+    uci set luci.${natid}.command="${NAT6_SCRIPT}"
+    uci commit
+fi
 
+# 检查安装常用软件包命令
+install_command_status=$(
+    uci show luci | grep -Eo 'luci.@command\[[0-9]*\]' | sort -u |
+    while read -r line; do
+        if [[ "$(uci get $line.command)" == "$NAT6_SCRIPT" ]]; then
+            echo "$line"
+            break
+        fi
+    done
+)
+
+if [[ -z "$install_command_status" ]]; then
     installid=$(uci add luci command)
     uci set luci.${installid}.name='安装常用软件'
-    uci set luci.${installid}.command='/rom/etc/uci-defaults/install-software'
+    uci set luci.${installid}.command="${INSTALL_SOFTWARE}"
     uci commit
 fi

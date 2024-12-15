@@ -1,0 +1,156 @@
+#!/bin/bash
+# 创建NAT6 - 与启用NAT6相同
+# 接收一个接口参数
+# 具体步骤
+# 1. 为接口添加一个IPv6静态路由（已存在则启用）
+# 2. 开启IPv6 NAT规则（该规则由default设置，处于未启用状态名称为nat6）
+# 3. 设置DHCPv6为server模式
+
+# 删除NAT6
+# 接收一个接口参数
+# 具体步骤
+# 1. 为接口删除IPv6静态路由
+# 2. 如果不存在启用的IPv6静态路由则关闭IPv6 NAT规则
+# 3. 如果不存在启用的IPv6静态路由则设置DHCPv6为hybrid模式
+# 方案2：先禁用NAT6然后直接删除该接口的IPv6静态路由
+remove_nat() {
+    INTERFACE=$1
+    # 禁用IPv6静态路由
+    disable_nat $INTERFACE
+    # 删除已经禁用的IPv6静态路由
+    uci show network | grep -Eo 'network.@route6\[[0-9]*\]' | sort -u | \
+    while read -r line; do
+        if [[ "$(uci get ${line}.interface)" == "$INTERFACE" ]]; then
+            uci del ${line}
+            break
+        fi
+    done
+    uci commit
+}
+
+# 禁用NAT6
+disable_nat() {
+    INTERFACE=$1
+    # 1. 为接口禁用IPv6静态路由
+    uci show network | grep -Eo 'network.@route6\[[0-9]*\]' | sort -u | \
+    while read -r line; do
+        if [[ "$(uci get ${line}.interface)" == "$INTERFACE" ]]; then
+            #        uci del ${line}
+            uci set ${line}.disabled=1
+            break
+        fi
+    done
+    # 开启wan接口前缀申请
+    uci set network.$INTERFACE.reqprefix=auto
+    # uci set network.wan6.delegate='1'
+    uci commit
+    # 2. 如果不存在启用的IPv6静态路由则关闭IPv6 NAT规则并设置DHCPv6为hybrid模式
+    route6_status=$(
+        uci show network | grep -Eo 'network.@route6\[[0-9]*\]' | sort -u | \
+        while read -r line; do
+            if [[ "$(uci get ${line}.target)" == "::/0" && "$(uci get ${line}.gateway)" == "fe80::1" ]]; then
+                if [[ "$(uci get ${line}.disabled 2>&1)" != "1" ]]; then
+                    echo "true"
+                    break
+                fi
+            fi
+        done
+    )
+    if [[ -z "$route6_status" ]]; then
+        uci show firewall | grep -Eo 'firewall.@nat\[[0-9]*\]' | sort -u | \
+        while read -r line; do
+            if [[ "$(uci get ${line}.src)" == "wan" && "$(uci get ${line}.family)"="ipv6" && "$(uci get ${line}.target)" = "MASQUERADE" ]]; then
+                uci set ${line}.enabled=0
+                break
+            fi
+        done
+        dhcpv6-mod hybrid
+    fi
+    uci commit
+    ifup $INTERFACE
+}
+
+
+# 开启NAT6
+enable_nat() {
+    INTERFACE=$1
+    # 1. 为接口添加一个IPv6静态路由（已存在则启用）
+    route6=$(
+        uci show network | grep -Eo 'network.@route6\[[0-9]*\]' | sort -u | \
+        while read -r line; do
+            if [[ "$INTERFACE" == "$(uci get ${line}.interface)" ]]; then
+                echo $(echo $line | grep -Eo '@route6\[[0-9]*\]')
+                uci set $line.disabled=0
+                break
+            fi
+        done
+    )
+    if [[ -z "$route6" ]]; then
+        eval route6=$(uci add network route6)
+        uci set network.$route6.interface=$INTERFACE
+        uci set network.$route6.target='::/0'
+        uci set network.$route6.gateway='fe80::1'
+        #    uci set network.$route6.disabled=1
+        uci set network.$route6.metric='1'
+    fi
+    # 关闭wan接口前缀申请
+    uci set network.$INTERFACE.reqprefix=no
+    # uci set network.wan6.delegate='0'
+    # 2. 开启IPv6 NAT规则（该规则由default设置，处于未启用状态名称为nat6）
+    nat_status=$(
+        uci show firewall | grep -Eo 'firewall.@nat\[[0-9]*\]' | sort -u | \
+        while read -r line; do
+            if [[ "$(uci get ${line}.src)" == "wan" && "$(uci get ${line}.family)"="ipv6" && "$(uci get ${line}.target)" = "MASQUERADE" ]]; then
+                uci set ${line}.enabled=1
+                echo "$line"
+                break
+            fi
+        done
+    )
+
+    if [[ -z "$nat_status" ]]; then
+        natid=$(uci add firewall nat)
+        uci set firewall.$natid.name=NAT6
+        uci set firewall.$natid.family=ipv6
+        uci set firewall.$natid.src=wan
+        uci set firewall.$natid.target=MASQUERADE
+        uci set firewall.$natid.proto=all
+        uci set firewall.$natid.enabled=1
+    fi
+    uci commit
+    # 3. 设置DHCPv6为server模式
+    dhcpv6-mod server
+    bash /rom/etc/uci-defaults/mwan3 $INTERFACE
+    ifup $INTERFACE
+}
+
+# 检查是否提供了操作和接口名
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 {create|remove|enable|disable} <interface>"
+    exit 1
+fi
+
+# 获取操作和接口名
+operation=$1
+interface=$2
+
+case $operation in
+    remove)
+        # 移除NAT配置
+        remove_nat $interface
+        ;;
+    enable|create)
+        # 启用NAT配置
+        enable_nat $interface
+        ;;
+    disable)
+        # 禁用NAT配置
+        disable_nat $interface
+        ;;
+    *)
+        echo "Invalid operation: $operation"
+        echo "Usage: $0 {create|remove|enable|disable} <interface>"
+        exit 1
+        ;;
+esac
+echo "提示：如果安装了mwan3(链路聚合与负载均衡)需到mwan3配置中添加并启用接口${interface}否则将无法使用IPv6"

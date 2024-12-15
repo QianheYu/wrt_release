@@ -1,26 +1,14 @@
 #!/bin/bash
 sed -i 's/ifname/device/g' /etc/config/network
 
-uci set network.lan.ipaddr=192.168.68.1
-uci commit
-
-# ipv6 default settings
-#uci set network.lan.ip6assign='64'
-uci set dhcp.lan.ra_default='1'
-uci set dhcp.lan.ra_slaac=0
-uci add_list dhcp.lan.ra_flags='managed-config'
-uci add_list dhcp.lan.ra_flags='home-agent'
-uci set dhcp.lan.ra='hybrid'
-uci set dhcp.lan.ndp='hybrid'
-uci set dhcp.lan.dhcpv6='hybrid'
-uci commit
+#uci set network.lan.ipaddr=192.168.68.1
+#uci commit
 
 # Set Firewall NAT6
 nat_status=$(
     uci show firewall | grep -Eo 'firewall.@nat\[[0-9]*\]' | sort -u | \
     while read -r line; do
         if [[ "$(uci get ${line}.src)" == "wan" && "$(uci get ${line}.family)"="ipv6" && "$(uci get ${line}.target)" = "MASQUERADE" ]]; then
-            uci set ${line}.enabled=1
             echo "$line"
             break
         fi
@@ -34,7 +22,7 @@ if [[ -z "$nat_status" ]]; then
     uci set firewall.$natid.src=wan
     uci set firewall.$natid.target=MASQUERADE
     uci set firewall.$natid.proto=all
-    uci set firewall.$natid.enabled=0
+    uci set firewall.$natid.enabled=1
 fi
 # Copy NAT6 Command to /usr/sbin
 #find /rom/etc/uci-defaults -type f | grep nat6 | xargs -I {} cp {} /usr/sbin
