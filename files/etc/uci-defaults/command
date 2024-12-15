@@ -20,7 +20,7 @@ nat6_command_status=$(
 
 if [[ -z "$nat6_command_status" ]]; then
     natid=$(uci add luci command)
-    uci set luci.${natid}.name='误删NAT6重新创建'
+    uci set luci.${natid}.name='开启或重新创建NAT6'
     uci set luci.${natid}.command="${NAT6_SCRIPT}"
     uci commit
 fi
@@ -29,7 +29,7 @@ fi
 install_command_status=$(
     uci show luci | grep -Eo 'luci.@command\[[0-9]*\]' | sort -u |
     while read -r line; do
-        if [[ "$(uci get $line.command)" == "$NAT6_SCRIPT" ]]; then
+        if [[ "$(uci get $line.command)" == "$INSTALL_SOFTWARE" ]]; then
             echo "$line"
             break
         fi
