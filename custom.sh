@@ -6,3 +6,5 @@ if [[ ! -z "$zerotier" ]]; then
 fi
 
 sed -i "s/_5G*//g" target/linux/qualcommax/ipq60xx/base-files/etc/uci-defaults/992_set-wifi-uci.sh
+
+sed -i 's/192.168.1.1/192.168.68.1/g' package/base-files/files/bin/config_generate
