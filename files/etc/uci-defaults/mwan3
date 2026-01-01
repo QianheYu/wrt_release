@@ -1,0 +1,15 @@
+#!/bin/bash
+# 获取接口名
+if [[ -z "$(opkg list-installed mwan3)" ]]; then
+    echo "mwan3 未安装"
+    exit 1
+fi
+
+interface=$1
+if [[ -z "$(uci show network | grep -Eo "network.${interface}" | sort -u)" ]]; then
+    echo "找不到对应的接口"
+    exit 1
+fi
+
+uci set mwan3.${interface}.enabled='1'
+uci commit

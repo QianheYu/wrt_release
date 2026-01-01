@@ -18,6 +18,7 @@
 set -e
 
 BASE_PATH=$(cd $(dirname $0) && pwd)
+UCI_DEFAULTS_PATH="$BASE_PATH/file"
 
 Dev=$1
 Build_Mod=$2
@@ -84,6 +85,10 @@ $BASE_PATH/update.sh "$REPO_URL" "$REPO_BRANCH" "$BASE_PATH/$BUILD_DIR" "$COMMIT
 
 apply_config
 remove_uhttpd_dependency
+
+if [[ -d "$UCI_DEFAULTS_PATH" ]]; then
+    cp -r $UCI_DEFAULTS_PATH $BUILD_DIR
+fi
 
 cd "$BASE_PATH/$BUILD_DIR"
 make defconfig

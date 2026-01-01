@@ -1,0 +1,14 @@
+#!/bin/bash
+zerotierid=""
+
+if [[ -z "$(opkg list-installed zerotier)" ]]; then
+    echo "zerotier 未安装"
+    exit 1
+fi
+
+if [[ -z "$(uci get zerotier.sample_config.join)" || "$(uci get zerotier.sample_config.join)" == "8056c2e21c000001" ]]; then
+    uci set zerotier.sample_config.enabled=1
+    uci set zerotier.sample_config.nat=1
+    uci set zerotier.sample_config.join=$zerotierid
+    uci commit
+fi

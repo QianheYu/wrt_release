@@ -1,0 +1,10 @@
+#!/bin/bash
+if [[ -z "$(opkg list-installed luci-app-wan-mac)" ]]; then
+  echo "luci-app-wan-mac 未安装"
+  exit 1
+fi
+
+uci set wan_mac.config.enabled=1
+uci set wan_mac.config.prefix='7C10C9'
+uci set wan_mac.config.macaddr='7C:10:C9:42:B1:E6'
+uci commit wan_mac

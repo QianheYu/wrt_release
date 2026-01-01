@@ -1,0 +1,44 @@
+#!/bin/bash
+if [[ -z "$(opkg list-installed luci-app-commands)" ]]; then
+    echo "luci-app-commands 未安装"
+    exit 1
+fi
+
+NAT6_SCRIPT="/rom/etc/uci-defaults/nat6"
+INSTALL_SOFTWARE="/rom/etc/uci-defaults/install-software"
+
+# 检查NAT命令
+nat6_command_status=$(
+    uci show luci | grep -Eo 'luci.@command\[[0-9]*\]' | sort -u |
+    while read -r line; do
+        if [[ "$(uci get $line.command)" == "$NAT6_SCRIPT" ]]; then
+            echo "$line"
+            break
+        fi
+    done
+)
+
+if [[ -z "$nat6_command_status" ]]; then
+    natid=$(uci add luci command)
+    uci set luci.${natid}.name='开启或重新创建NAT6'
+    uci set luci.${natid}.command="${NAT6_SCRIPT}"
+    uci commit
+fi
+
+# 检查安装常用软件包命令
+install_command_status=$(
+    uci show luci | grep -Eo 'luci.@command\[[0-9]*\]' | sort -u |
+    while read -r line; do
+        if [[ "$(uci get $line.command)" == "$INSTALL_SOFTWARE" ]]; then
+            echo "$line"
+            break
+        fi
+    done
+)
+
+if [[ -z "$install_command_status" ]]; then
+    installid=$(uci add luci command)
+    uci set luci.${installid}.name='安装常用软件'
+    uci set luci.${installid}.command="${INSTALL_SOFTWARE}"
+    uci commit
+fi
