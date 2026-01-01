@@ -1,0 +1,12 @@
+# 软件包名称 目标菜单路径
+# 格式: <package_name> <target_path>
+# target_path 应该是完整的菜单路径，例如 admin/services/appname
+# 脚本会自动提取父级菜单进行替换
+
+# 示例:
+# luci-app-access-control admin/services/access_control
+# luci-app-ssr-plus admin/vpn/shadowsocksr
+# luci-app-passwall admin/vpn/passwall
+# luci-app-openclash admin/services/openclash
+# luci-app-adguardhome admin/services/adguardhome
+# luci-app-ddns admin/services/ddns

@@ -1,0 +1,13 @@
+# 软件包名称 目标分类(Category)
+# 格式: <package_name> [target_category]
+# 
+# 规则:
+# 1. 如果指定了 target_category: 将 admin/old_cat/name 修改为 admin/target_category/name
+# 2. 如果未指定 target_category: 将 admin/old_cat/name 修改为 admin/name (删除中间分类)
+#
+# 注意: 脚本仅处理三级菜单结构 (admin/cat/name)。如果当前已经是二级 (admin/name)，则不会修改。
+
+# 示例:
+# luci-app-ssr-plus vpn            # -> admin/vpn/shadowsocksr
+# luci-app-access-control services # -> admin/services/access_control
+# luci-app-quickstart              # -> admin/quickstart (删除中间级)
