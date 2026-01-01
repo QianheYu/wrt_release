@@ -12,7 +12,7 @@ immortalwrt/
 compilecfg/test.ini
 deconfig/test.config
 *.swp
-.vscode/settings.json
+.vscode/
 deconfig/*.bak
 test.sh
 domain_rule.json
