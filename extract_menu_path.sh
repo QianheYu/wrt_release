@@ -38,7 +38,7 @@ fi
 echo "正在扫描 $FEEDS_DIR ..."
 echo "# 自动生成的菜单路径清单" > "$OUTPUT_FILE"
 echo "# 生成时间: $(date)" >> "$OUTPUT_FILE"
-echo "# 格式: <package_name> <menu_path>" >> "$OUTPUT_FILE"
+echo "# 格式: <package_name> <menu_path> [order]" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 # 查找所有可能的 LuCI app 目录
@@ -55,34 +55,45 @@ find "$FEEDS_DIR" -type f -path "*/luasrc/controller/*.lua" | while read -r lua_
     # 使用 awk 提取 luasrc 前面的一级目录名
     pkg_name=$(echo "$lua_file" | awk -F'/luasrc/' '{print $1}' | awk -F'/' '{print $NF}')
     
-    # 提取菜单路径
+    # 提取菜单路径和 order
     # 查找 entry({"admin", ...
     # 提取 admin/.../... 直到结束引号
     
     # 双引号
-    path_dq=$(grep -oP 'entry\(\{"admin", "[^"]+", "[^"]+"' "$lua_file" | head -n 1 | sed 's/entry({"//; s/", "/\//g; s/"//g')
-    if [ -n "$path_dq" ]; then
-        echo "$pkg_name $path_dq" >> "$OUTPUT_FILE.tmp"
+    # 尝试提取 order: entry(..., order)
+    # 匹配行
+    line_dq=$(grep -oP 'entry\(\{"admin", "[^"]+", "[^"]+"[^)]*' "$lua_file" | head -n 1)
+    if [ -n "$line_dq" ]; then
+        path_dq=$(echo "$line_dq" | grep -oP 'entry\(\{"admin", "[^"]+", "[^"]+"' | sed 's/entry({"//; s/", "/\//g; s/"//g')
+        # 提取最后一个数字作为 order
+        order=$(echo "$line_dq" | grep -oP ',\s*\d+\s*\)$' | grep -oP '\d+')
+        echo "$pkg_name $path_dq $order" >> "$OUTPUT_FILE.tmp"
         continue
     fi
     
     # 单引号
-    path_sq=$(grep -oP "entry\({'admin', '[^']+', '[^']+" "$lua_file" | head -n 1 | sed "s/entry({'//; s/', '/\//g; s/'//g")
-    if [ -n "$path_sq" ]; then
-        echo "$pkg_name $path_sq" >> "$OUTPUT_FILE.tmp"
+    line_sq=$(grep -oP "entry\({'admin', '[^']+', '[^']+'[^)]*" "$lua_file" | head -n 1)
+    if [ -n "$line_sq" ]; then
+        path_sq=$(echo "$line_sq" | grep -oP "entry\({'admin', '[^']+', '[^']+" | sed "s/entry({'//; s/', '/\//g; s/'//g")
+        order=$(echo "$line_sq" | grep -oP ',\s*\d+\s*\)$' | grep -oP '\d+')
+        echo "$pkg_name $path_sq $order" >> "$OUTPUT_FILE.tmp"
         continue
     fi
     
     # 二级菜单 (admin, name)
-    path_dq_2=$(grep -oP 'entry\(\{"admin", "[^"]+"' "$lua_file" | head -n 1 | sed 's/entry({"//; s/", "/\//g; s/"//g')
-    if [ -n "$path_dq_2" ]; then
-        echo "$pkg_name $path_dq_2" >> "$OUTPUT_FILE.tmp"
+    line_dq_2=$(grep -oP 'entry\(\{"admin", "[^"]+"[^)]*' "$lua_file" | head -n 1)
+    if [ -n "$line_dq_2" ]; then
+        path_dq_2=$(echo "$line_dq_2" | grep -oP 'entry\(\{"admin", "[^"]+"' | sed 's/entry({"//; s/", "/\//g; s/"//g')
+        order=$(echo "$line_dq_2" | grep -oP ',\s*\d+\s*\)$' | grep -oP '\d+')
+        echo "$pkg_name $path_dq_2 $order" >> "$OUTPUT_FILE.tmp"
         continue
     fi
     
-    path_sq_2=$(grep -oP "entry\({'admin', '[^']+" "$lua_file" | head -n 1 | sed "s/entry({'//; s/', '/\//g; s/'//g")
-    if [ -n "$path_sq_2" ]; then
-        echo "$pkg_name $path_sq_2" >> "$OUTPUT_FILE.tmp"
+    line_sq_2=$(grep -oP "entry\({'admin', '[^']+'[^)]*" "$lua_file" | head -n 1)
+    if [ -n "$line_sq_2" ]; then
+        path_sq_2=$(echo "$line_sq_2" | grep -oP "entry\({'admin', '[^']+" | sed "s/entry({'//; s/', '/\//g; s/'//g")
+        order=$(echo "$line_sq_2" | grep -oP ',\s*\d+\s*\)$' | grep -oP '\d+')
+        echo "$pkg_name $path_sq_2 $order" >> "$OUTPUT_FILE.tmp"
         continue
     fi
 
@@ -104,7 +115,12 @@ find "$FEEDS_DIR" -type f \( -path "*/root/usr/share/luci/menu.d/*.json" -o -pat
     path_json=$(grep -oP '"admin/[^"]+"' "$json_file" | head -n 1 | sed 's/"//g')
     
     if [ -n "$path_json" ]; then
-        echo "$pkg_name $path_json" >> "$OUTPUT_FILE.tmp"
+        # 尝试提取 order
+        # 假设 order 在同一文件中，且在 path_json 之后
+        # 这是一个简单的 grep，可能不准确，因为 json 可能是多行的
+        # 我们尝试查找 "order": 10 这样的结构
+        order=$(grep -oP '"order":\s*\d+' "$json_file" | head -n 1 | grep -oP '\d+')
+        echo "$pkg_name $path_json $order" >> "$OUTPUT_FILE.tmp"
     fi
 done
 

@@ -42,19 +42,22 @@ fi
 echo "开始处理菜单分类..."
 
 # 读取清单文件
-grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_category; do
+grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_category target_order; do
     if [ -z "$pkg_name" ]; then
         continue
     fi
 
-    # 去除 target_category 可能存在的行尾注释 (简单处理 #)
-    target_category=${target_category%%#*}
+    # 去除 target_order 可能存在的行尾注释
+    target_order=${target_order%%#*}
     # 去除前后空格
-    target_category=$(echo "$target_category" | xargs)
+    target_order=$(echo "$target_order" | xargs)
 
     action_desc="修改分类为 '$target_category'"
     if [ -z "$target_category" ]; then
         action_desc="删除中间分类"
+    fi
+    if [ -n "$target_order" ]; then
+        action_desc="$action_desc, Order: $target_order"
     fi
 
     echo "正在检查软件包: $pkg_name ($action_desc)"
@@ -114,6 +117,27 @@ grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_category; do
              echo "  -> 插入分类 Lua (单引号): $lua_file (插入 $target_category)"
              sed -i "s/entry({'admin', /entry({'admin', '$target_category', /g" "$lua_file"
         fi
+
+        # --- 处理 Order (Lua) ---
+        if [ -n "$target_order" ]; then
+            # 检查是否存在 order 参数 (通常是最后一个数字参数)
+            # 匹配 entry(..., 123)
+            if grep -qP 'entry\(.*,\s*\d+\s*\)' "$lua_file"; then
+                # 提取当前 order
+                current_order=$(grep -oP 'entry\(.*,\s*\K\d+(?=\s*\))' "$lua_file" | head -n 1)
+                if [ -n "$current_order" ] && [ "$current_order" != "$target_order" ]; then
+                    echo "  -> 修改 Lua Order: $lua_file ($current_order -> $target_order)"
+                    # 替换最后一个数字参数
+                    sed -i "s/,\s*$current_order\s*)/, $target_order)/g" "$lua_file"
+                fi
+            else
+                # 如果没有 order 参数，尝试添加
+                if grep -qP 'entry\(.*,\s*_\("[^"]+"\)\)' "$lua_file"; then
+                     echo "  -> 添加 Lua Order: $lua_file (添加 $target_order)"
+                     sed -i "s/)\s*$/, $target_order)/" "$lua_file"
+                fi
+            fi
+        fi
     done
 
     # --- 处理 JSON 菜单定义 ---
@@ -143,6 +167,24 @@ grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_category; do
              # 这里的 grep 比较宽泛，sed 替换时要精确
              echo "  -> 插入分类 JSON: $json_file (插入 $target_category)"
              sed -i "s/\"admin\//\"admin\/$target_category\//g" "$json_file"
+        fi
+
+        # --- 处理 Order (JSON) ---
+        if [ -n "$target_order" ]; then
+             # 检查是否存在 "order": 123
+             if grep -q '"order":' "$json_file"; then
+                 current_order_json=$(grep -oP '"order":\s*\K\d+' "$json_file" | head -n 1)
+                 if [ -n "$current_order_json" ] && [ "$current_order_json" != "$target_order" ]; then
+                     echo "  -> 修改 JSON Order: $json_file ($current_order_json -> $target_order)"
+                     sed -i "s/\"order\":\s*$current_order_json/\"order\": $target_order/g" "$json_file"
+                 fi
+             else
+                 # 如果没有 order，尝试插入
+                 if grep -q '"title":' "$json_file"; then
+                     echo "  -> 添加 JSON Order: $json_file (添加 $target_order)"
+                     sed -i "/\"title\":/a \\\\t\\t\"order\": $target_order," "$json_file"
+                 fi
+             fi
         fi
     done
 
