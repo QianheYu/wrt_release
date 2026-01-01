@@ -1,0 +1,9 @@
+#!/bin/bash
+if [[ -z "$(opkg list-installed dockerd)" ]]; then
+  echo "dockerd 未安装"
+  exit 1
+fi
+mkdir -p /mnt/mmcblk0p27/docker
+uci set dockerd.globals.data_root='/mnt/mmcblk0p27/docker/'
+uci commit
+/etc/init.d/dockerd restart

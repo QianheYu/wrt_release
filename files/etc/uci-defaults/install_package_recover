@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# 软件包备份列表路径
+file="/etc/backup/installed_packages.txt"
+
+# 检查文件是否存在
+if [[ ! -f "$file" ]]; then
+    echo "文件 $file 不存在"
+    exit 1
+fi
+
+# 读取文件并批量安装软件包
+opkg update > /dev/null && cat $file | grep overlay | \
+while IFS=$'\t' read -r package; do
+    echo "正在安装 $package..."
+    opkg install $package >/dev/null
+done
+
+echo "所有安装包恢复完成！"
+
+bash /rom/etc/uci-defaults/rclone
+bash /rom/etc/uci-defaults/qbittorrent
+bash /rom/etc/uci-defaults/aria2
+bash /rom/etc/uci-defaults/dockerd

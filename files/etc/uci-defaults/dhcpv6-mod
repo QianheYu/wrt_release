@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# 检查是否提供了操作和接口名
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 {nat|default}"
+    exit 1
+fi
+
+# 获取操作和接口名
+operation=$1
+
+case $operation in
+    server)
+        # 创建NAT配置
+        uci set dhcp.lan.ra_default=2
+        uci set dhcp.lan.ra='server'
+        uci set dhcp.lan.dhcpv6='server'
+        if [[ "$(uci get dhcp.lan.ndp)" == "relay" || "$(uci get dhcp.lan.ndp)" == "hybrid" ]]; then
+            uci del dhcp.lan.ndp
+        fi
+        uci commit
+        ;;
+    default|hybrid)
+        # 移除NAT配置
+        uci set dhcp.lan.ra_default=1
+        uci set dhcp.lan.ra='hybrid'
+        uci set dhcp.lan.ndp='hybrid'
+        uci set dhcp.lan.dhcpv6='hybrid'
+        uci commit
+        ;;
+    *)
+        echo "Invalid operation: $operation"
+        echo "Usage: $0 {nat|default}"
+        exit 1
+        ;;
+esac

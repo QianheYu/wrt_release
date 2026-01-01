@@ -1,0 +1,7 @@
+#!/bin/bash
+if [[ -z "$(opkg list-installed luci-app-upnp)" ]]; then
+    echo "luci-app-upnp 未安装"
+    exit 1
+fi
+uci set upnpd.config.enabled=1
+uci commit

@@ -1,0 +1,11 @@
+#!/bin/bash
+if [[ -z "$(opkg list-installed luci-app-aria2)" ]]; then
+  echo "luci-app-aria2 未安装"
+  exit 1
+fi
+
+if [[ "$(uci get aria2.main.dir)" == "/mnt/sda1/aria2" ]]; then
+  mkdir -p /mnt/mmcblk0p27/aria2
+  uci set aria2.main.dir='/mnt/mmcblk0p27/aria2'
+  uci commit
+fi
