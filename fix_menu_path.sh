@@ -71,7 +71,15 @@ grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_path target_
     # 我们提取 "category"
     target_category=$(echo "$target_path" | awk -F'/' '{print $2}')
     
-    if [ -z "$target_category" ]; then
+    # 检查是否为移除分类的情况 (admin//name)
+    is_removal=0
+    target_name=""
+    if [ -z "$target_category" ] && [[ "$target_path" == admin//* ]]; then
+        is_removal=1
+        # 提取 // 后面的部分作为 target_name
+        target_name=${target_path##*//}
+        echo "  -> 检测到移除中间分类的操作 (Target Name: $target_name)"
+    elif [ -z "$target_category" ]; then
         echo "  -> 无法从 $target_path 解析出目标分类 (Category)"
         continue
     fi
@@ -93,17 +101,33 @@ grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_path target_
             # 查找当前分类
             current_category_dq=$(sed -n 's/.*entry({"admin", "\([^"]*\)".*/\1/p' "$lua_file" | head -n 1)
             
-            if [ -n "$current_category_dq" ] && [ "$current_category_dq" != "$target_category" ]; then
-                echo "  -> 修改 Lua (双引号): $lua_file ($current_category_dq -> $target_category)"
-                sed -i "s/entry({\"admin\", \"$current_category_dq\"/entry({\"admin\", \"$target_category\"/g" "$lua_file"
+            if [ -n "$current_category_dq" ]; then
+                if [ "$is_removal" -eq 1 ]; then
+                    # 只有当后续路径匹配 target_name 时才删除
+                    # 检查行中是否包含 "admin", "current_category", "target_name"
+                    if grep -q "entry({\"admin\", \"$current_category_dq\", \"$target_name\"" "$lua_file"; then
+                        echo "  -> 修改 Lua (双引号): $lua_file (删除 $current_category_dq)"
+                        sed -i "s/entry({\"admin\", \"$current_category_dq\",[[:space:]]*/entry({\"admin\", /g" "$lua_file"
+                    fi
+                elif [ "$current_category_dq" != "$target_category" ]; then
+                    echo "  -> 修改 Lua (双引号): $lua_file ($current_category_dq -> $target_category)"
+                    sed -i "s/entry({\"admin\", \"$current_category_dq\"/entry({\"admin\", \"$target_category\"/g" "$lua_file"
+                fi
             fi
 
             # 2. 处理单引号 entry({'admin', 'xxx', ...
             current_category_sq=$(sed -n "s/.*entry({'admin', '\([^']*\)'.*/\1/p" "$lua_file" | head -n 1)
             
-            if [ -n "$current_category_sq" ] && [ "$current_category_sq" != "$target_category" ]; then
-                echo "  -> 修改 Lua (单引号): $lua_file ($current_category_sq -> $target_category)"
-                sed -i "s/entry({'admin', '$current_category_sq'/entry({'admin', '$target_category'/g" "$lua_file"
+            if [ -n "$current_category_sq" ]; then
+                if [ "$is_removal" -eq 1 ]; then
+                    if grep -q "entry({'admin', '$current_category_sq', '$target_name'" "$lua_file"; then
+                        echo "  -> 修改 Lua (单引号): $lua_file (删除 $current_category_sq)"
+                        sed -i "s/entry({'admin', '$current_category_sq',[[:space:]]*/entry({'admin', /g" "$lua_file"
+                    fi
+                elif [ "$current_category_sq" != "$target_category" ]; then
+                    echo "  -> 修改 Lua (单引号): $lua_file ($current_category_sq -> $target_category)"
+                    sed -i "s/entry({'admin', '$current_category_sq'/entry({'admin', '$target_category'/g" "$lua_file"
+                fi
             fi
             
             # --- 处理 Order (Lua) ---
@@ -153,9 +177,18 @@ grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_path target_
              # 假设格式 "admin/old_cat/name":
              current_cat_json=$(sed -n 's/.*"admin\/\([^/]*\)\/.*/\1/p' "$json_file" | head -n 1)
              
-             if [ -n "$current_cat_json" ] && [ "$current_cat_json" != "$target_category" ]; then
-                 echo "  -> 修改 JSON: $json_file ($current_cat_json -> $target_category)"
-                 sed -i "s/\"admin\/$current_cat_json\//\"admin\/$target_category\//g" "$json_file"
+             if [ -n "$current_cat_json" ]; then
+                 if [ "$is_removal" -eq 1 ]; then
+                     # 检查是否匹配 admin/current_cat/target_name
+                     # 注意：target_name 可能包含子路径，这里只匹配前缀
+                     if grep -q "\"admin/$current_cat_json/$target_name" "$json_file"; then
+                         echo "  -> 修改 JSON: $json_file (删除 $current_cat_json)"
+                         sed -i "s/\"admin\/$current_cat_json\//\"admin\//g" "$json_file"
+                     fi
+                 elif [ "$current_cat_json" != "$target_category" ]; then
+                     echo "  -> 修改 JSON: $json_file ($current_cat_json -> $target_category)"
+                     sed -i "s/\"admin\/$current_cat_json\//\"admin\/$target_category\//g" "$json_file"
+                 fi
              fi
              
              # --- 处理 Order (JSON) ---
