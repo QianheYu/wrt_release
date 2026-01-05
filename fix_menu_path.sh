@@ -99,37 +99,65 @@ grep -vE '^\s*#|^\s*$' "$LIST_FILE" | while read -r pkg_name target_path target_
             
             # 1. 处理双引号 entry({"admin", "xxx", ...
             # 查找当前分类
-            current_category_dq=$(sed -n 's/.*entry({"admin", "\([^"]*\)".*/\1/p' "$lua_file" | head -n 1)
+            current_category_dq=$(sed -n 's/.*entry({"admin",[[:space:]]*"\([^"]*\)".*/\1/p' "$lua_file" | head -n 1)
             
             if [ -n "$current_category_dq" ]; then
                 if [ "$is_removal" -eq 1 ]; then
                     # 只有当后续路径匹配 target_name 时才删除
                     # 检查行中是否包含 "admin", "current_category", "target_name"
-                    if grep -q "entry({\"admin\", \"$current_category_dq\", \"$target_name\"" "$lua_file"; then
+                    if grep -q "entry({\"admin\",[[:space:]]*\"$current_category_dq\",[[:space:]]*\"$target_name\"" "$lua_file"; then
                         echo "  -> 修改 Lua (双引号): $lua_file (删除 $current_category_dq)"
-                        sed -i "s/entry({\"admin\", \"$current_category_dq\",[[:space:]]*/entry({\"admin\", /g" "$lua_file"
+                        sed -i "s/entry({\"admin\",[[:space:]]*\"$current_category_dq\",[[:space:]]*/entry({\"admin\", /g" "$lua_file"
+                        sed -i "s/alias(\"admin\",[[:space:]]*\"$current_category_dq\",[[:space:]]*/alias(\"admin\", /g" "$lua_file"
                     fi
                 elif [ "$current_category_dq" != "$target_category" ]; then
                     echo "  -> 修改 Lua (双引号): $lua_file ($current_category_dq -> $target_category)"
-                    sed -i "s/entry({\"admin\", \"$current_category_dq\"/entry({\"admin\", \"$target_category\"/g" "$lua_file"
+                    sed -i "s/entry({\"admin\",[[:space:]]*\"$current_category_dq\"/entry({\"admin\", \"$target_category\"/g" "$lua_file"
+                    sed -i "s/alias(\"admin\",[[:space:]]*\"$current_category_dq\"/alias(\"admin\", \"$target_category\"/g" "$lua_file"
                 fi
             fi
 
             # 2. 处理单引号 entry({'admin', 'xxx', ...
-            current_category_sq=$(sed -n "s/.*entry({'admin', '\([^']*\)'.*/\1/p" "$lua_file" | head -n 1)
+            current_category_sq=$(sed -n "s/.*entry({'admin',[[:space:]]*'\([^']*\)'.*/\1/p" "$lua_file" | head -n 1)
             
             if [ -n "$current_category_sq" ]; then
                 if [ "$is_removal" -eq 1 ]; then
-                    if grep -q "entry({'admin', '$current_category_sq', '$target_name'" "$lua_file"; then
+                    if grep -q "entry({'admin',[[:space:]]*'$current_category_sq',[[:space:]]*'$target_name'" "$lua_file"; then
                         echo "  -> 修改 Lua (单引号): $lua_file (删除 $current_category_sq)"
-                        sed -i "s/entry({'admin', '$current_category_sq',[[:space:]]*/entry({'admin', /g" "$lua_file"
+                        sed -i "s/entry({'admin',[[:space:]]*'$current_category_sq',[[:space:]]*/entry({'admin', /g" "$lua_file"
+                        sed -i "s/alias('admin',[[:space:]]*'$current_category_sq',[[:space:]]*/alias('admin', /g" "$lua_file"
                     fi
                 elif [ "$current_category_sq" != "$target_category" ]; then
                     echo "  -> 修改 Lua (单引号): $lua_file ($current_category_sq -> $target_category)"
-                    sed -i "s/entry({'admin', '$current_category_sq'/entry({'admin', '$target_category'/g" "$lua_file"
+                    sed -i "s/entry({'admin',[[:space:]]*'$current_category_sq'/entry({'admin', '$target_category'/g" "$lua_file"
+                    sed -i "s/alias('admin',[[:space:]]*'$current_category_sq'/alias('admin', '$target_category'/g" "$lua_file"
                 fi
             fi
             
+            # --- 额外处理 Alias (确保 Alias 与 Target Category 一致) ---
+            # 即使 Entry 已经被修改，这里也会检查 Alias 是否指向旧的分类
+            
+            # 提取目标应用名称 (通常是路径的第三部分)
+            if [ "$is_removal" -eq 1 ]; then
+                target_app_name="$target_name"
+            else
+                target_app_name=$(echo "$target_path" | awk -F'/' '{print $3}')
+            fi
+            
+            if [ -n "$target_app_name" ]; then
+                 # echo "  -> 检查 Alias 修正 (App Name: $target_app_name)"
+                 if [ "$is_removal" -eq 1 ]; then
+                     # 移除 Alias 中的分类
+                     sed -i "s/alias(\"admin\",[[:space:]]*\"[^\"]*\",[[:space:]]*\"$target_app_name\"/alias(\"admin\", \"$target_app_name\"/g" "$lua_file"
+                     sed -i "s/alias('admin',[[:space:]]*'[^']*',[[:space:]]*'$target_app_name'/alias('admin', '$target_app_name'/g" "$lua_file"
+                 else
+                     # 替换 Alias 中的分类
+                     # 使用更宽松的正则匹配空格
+                     sed -i "s/alias(\"admin\",[[:space:]]*\"[^\"]*\",[[:space:]]*\"$target_app_name\"/alias(\"admin\", \"$target_category\", \"$target_app_name\"/g" "$lua_file"
+                     sed -i "s/alias('admin',[[:space:]]*'[^']*',[[:space:]]*'$target_app_name'/alias('admin', '$target_category', '$target_app_name'/g" "$lua_file"
+                 fi
+            fi
+
             # --- 处理 Order (Lua) ---
             if [ -n "$target_order" ]; then
                 # 检查是否存在 order 参数 (通常是最后一个数字参数)
