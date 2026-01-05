@@ -2,16 +2,23 @@
 
 # 脚本名称: export_menu_order.sh
 # 功能: 导出所有软件包在菜单中的排序序号
-# 用法: ./export_menu_order.sh [-o output_file] [feeds_dir]
+# 用法: ./export_menu_order.sh [-o output_file] [-m] [feeds_dir]
+# 参数:
+#   -o, -f: 指定输出文件 (默认 menu_order_list.txt)
+#   -m:     仅导出主排序 (每个软件包只保留第一个扫描到的排序)
 
 OUTPUT_FILE="menu_order_list.txt"
 FEEDS_DIR="feeds"
+MAIN_ONLY=false
 
 # 解析参数
-while getopts ":o:" opt; do
+while getopts ":o:f:m" opt; do
   case $opt in
-    o)
+    o|f)
       OUTPUT_FILE="$OPTARG"
+      ;;
+    m)
+      MAIN_ONLY=true
       ;;
     \?)
       echo "无效选项: -$OPTARG" >&2
@@ -38,7 +45,7 @@ fi
 echo "正在扫描 $FEEDS_DIR ..."
 echo "# 自动生成的菜单排序清单" > "$OUTPUT_FILE"
 echo "# 生成时间: $(date)" >> "$OUTPUT_FILE"
-echo "# 格式: <package_name> <order>" >> "$OUTPUT_FILE"
+echo "# 格式: <package_name> <category> <order>" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 TMP_FILE="${OUTPUT_FILE}.tmp"
@@ -55,8 +62,15 @@ process_entry() {
         return
     fi
 
-    if [ -n "$pkg_name" ] && [ -n "$order" ]; then
-        echo "$pkg_name $order" >> "$TMP_FILE"
+    # 提取 category (路径的第二部分)
+    local category=""
+    IFS='/' read -r -a parts <<< "$path"
+    
+    if [ "${#parts[@]}" -ge 3 ]; then
+        category="${parts[1]}"
+        if [ -n "$pkg_name" ] && [ -n "$order" ]; then
+            echo "$pkg_name $category $order" >> "$TMP_FILE"
+        fi
     fi
 }
 
@@ -123,8 +137,15 @@ done
 
 # 排序并去重
 if [ -f "$TMP_FILE" ]; then
-    # 按包名排序
-    sort -u "$TMP_FILE" | sort -k1,1 >> "$OUTPUT_FILE"
+    if [ "$MAIN_ONLY" = true ]; then
+        # 仅保留每个软件包的第一个扫描到的条目 (通常是主入口)
+        # 使用 awk 去重，然后按包名排序
+        awk '!seen[$1]++' "$TMP_FILE" | sort -k1,1 >> "$OUTPUT_FILE"
+    else
+        # 按包名排序并去重所有条目
+        sort -u "$TMP_FILE" | sort -k1,1 >> "$OUTPUT_FILE"
+    fi
+    
     rm "$TMP_FILE"
     echo "导出完成。结果已保存至 $OUTPUT_FILE"
 else

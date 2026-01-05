@@ -3,6 +3,10 @@
 # 脚本名称: fix_menu_order.sh
 # 功能: 根据配置文件批量修改 OpenWrt 软件包的菜单排序 (Order)
 # 用法: ./fix_menu_order.sh [-f config_file] [feeds_dir]
+#
+# 配置文件格式支持:
+# 1. <package_name> <order>
+# 2. <package_name> <category> <order> (脚本会自动忽略中间的 category)
 
 CONFIG_FILE="menu_order_list.txt"
 FEEDS_DIR="feeds"
@@ -50,8 +54,8 @@ grep -vE '^\s*#|^\s*$' "$CONFIG_FILE" | while read -r pkg_name target_order; do
 
     # 去除 target_order 可能存在的行尾注释
     target_order=${target_order%%#*}
-    # 去除前后空格
-    target_order=$(echo "$target_order" | xargs)
+    # 取最后一个字段作为 order (兼容 <pkg> <order> 和 <pkg> <category> <order>)
+    target_order=$(echo "$target_order" | awk '{print $NF}')
     
     # 确保 target_order 是数字
     if ! [[ "$target_order" =~ ^[0-9]+$ ]]; then
