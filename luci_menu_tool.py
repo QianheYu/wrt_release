@@ -137,8 +137,9 @@ class LuCIMenuTool:
                             entry_info = {
                                 "path": key,
                                 "title": value.get("title", ""),
-                                "order": str(value.get("order", ""))
                             }
+                            if "order" in value and value["order"] is not None:
+                                entry_info["order"] = str(value["order"])
                             all_entries.append(entry_info)
                 except Exception:
                     continue
@@ -163,16 +164,14 @@ class LuCIMenuTool:
                 result["path"] = "; ".join(sorted(top_level_paths))
                 
                 for tp in sorted(top_level_paths):
-                    top_entry = {
-                        "path": tp,
-                        "order": result.get("order", ""),
-                        "is_top_level": True
-                    }
                     existing = next((e for e in all_entries if e.get("path") == tp), None)
                     if not existing:
+                        top_entry = {"path": tp, "is_top_level": True}
+                        if result.get("order"):
+                            top_entry["order"] = result["order"]
                         all_entries.insert(0, top_entry)
-                    elif not existing.get("order"):
-                        existing["order"] = result.get("order", "")
+                    elif "order" not in existing and result.get("order"):
+                        existing["order"] = result["order"]
             else:
                 parts = all_entries[0]["path"].split("/")
                 result["path"] = "/".join(parts[:2]) if len(parts) >= 2 else all_entries[0]["path"]
@@ -233,10 +232,9 @@ class LuCIMenuTool:
                     parts = [p.strip().strip('"').strip("'") for p in path_str.split(',')]
                     full_path = "/".join(parts)
                     
-                    entry_info = {
-                        "path": full_path,
-                        "order": order_match.group(1) if order_match else ""
-                    }
+                    entry_info = {"path": full_path}
+                    if order_match:
+                        entry_info["order"] = order_match.group(1)
                     
                     all_entries.append(entry_info)
                 
@@ -269,16 +267,14 @@ class LuCIMenuTool:
                 result["path"] = "; ".join(sorted(top_level_paths))
                 
                 for tp in sorted(top_level_paths):
-                    top_entry = {
-                        "path": tp,
-                        "order": result.get("order", ""),
-                        "is_top_level": True
-                    }
                     existing = next((e for e in all_entries if e.get("path") == tp), None)
                     if not existing:
+                        top_entry = {"path": tp, "is_top_level": True}
+                        if result.get("order"):
+                            top_entry["order"] = result["order"]
                         all_entries.insert(0, top_entry)
-                    elif not existing.get("order"):
-                        existing["order"] = result.get("order", "")
+                    elif "order" not in existing and result.get("order"):
+                        existing["order"] = result["order"]
             else:
                 parts = all_entries[0]["path"].split("/")
                 result["path"] = "/".join(parts[:2]) if len(parts) >= 2 else all_entries[0]["path"]
