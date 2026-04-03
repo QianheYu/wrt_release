@@ -463,22 +463,61 @@ class LuCIMenuTool:
                     
                     for entry in entries:
                         path = entry.get("path", "")
+                        new_path = entry.get("new_path", path)
                         title = entry.get("title", "")
                         order = entry.get("order", "")
                         
-                        if not path or path not in menu_data:
+                        if not path:
                             continue
                         
-                        if title and menu_data[path].get("title") != title:
-                            menu_data[path]["title"] = title
-                            modified = True
-                        if order:
-                            old_order = menu_data[path].get("order")
-                            if old_order is not None:
-                                old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
-                                if str(old_order) != str(order):
-                                    menu_data[path]["order"] = int(order)
+                        target_path = path
+                        if path in menu_data:
+                            if new_path != path:
+                                entry_data = menu_data.pop(path)
+                                menu_data[new_path] = entry_data
+                                target_path = new_path
+                                modified = True
+                            
+                            if title and menu_data[target_path].get("title") != title:
+                                menu_data[target_path]["title"] = title
+                                modified = True
+                            if order:
+                                old_order = menu_data[target_path].get("order")
+                                if old_order is not None:
+                                    old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
+                                    if str(old_order) != str(order):
+                                        menu_data[target_path]["order"] = int(order)
+                                        modified = True
+                        else:
+                            found_old_path = None
+                            for old_path, data in menu_data.items():
+                                if data.get("title") == title:
+                                    found_old_path = old_path
+                                    break
+                            
+                            if found_old_path:
+                                if new_path != found_old_path:
+                                    entry_data = menu_data.pop(found_old_path)
+                                    menu_data[new_path] = entry_data
+                                    target_path = new_path
                                     modified = True
+                                    
+                                    if title and menu_data[target_path].get("title") != title:
+                                        menu_data[target_path]["title"] = title
+                                        modified = True
+                                    if order:
+                                        old_order = menu_data[target_path].get("order")
+                                        if old_order is not None:
+                                            old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
+                                            if str(old_order) != str(order):
+                                                menu_data[target_path]["order"] = int(order)
+                                                modified = True
+                            elif new_path != path:
+                                entry_data = {"title": title} if title else {}
+                                if order:
+                                    entry_data["order"] = int(order)
+                                menu_data[new_path] = entry_data
+                                modified = True
                     
                     if modified:
                         with open(json_files[0], 'w', encoding='utf-8') as f:
