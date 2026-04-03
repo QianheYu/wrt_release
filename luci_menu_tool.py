@@ -528,7 +528,28 @@ class LuCIMenuTool:
                         with open(json_files[0], 'r', encoding='utf-8') as f:
                             original_data = json.load(f)
                         
-                        if original_data != menu_data:
+                        has_actual_change = False
+                        for path_key in menu_data:
+                            if path_key not in original_data:
+                                has_actual_change = True
+                                break
+                            orig_entry = original_data[path_key]
+                            new_entry = menu_data[path_key]
+                            if orig_entry.get("title") != new_entry.get("title"):
+                                has_actual_change = True
+                                break
+                            orig_order = orig_entry.get("order")
+                            new_order = new_entry.get("order")
+                            if orig_order is None and new_order is not None:
+                                pass
+                            elif orig_order is not None and new_order is None:
+                                has_actual_change = True
+                                break
+                            elif str(orig_order) != str(new_order):
+                                has_actual_change = True
+                                break
+                        
+                        if has_actual_change:
                             with open(json_files[0], 'w', encoding='utf-8') as f:
                                 json.dump(menu_data, f, indent=2, ensure_ascii=False)
                             print(f"  Updated menu.d JSON")
