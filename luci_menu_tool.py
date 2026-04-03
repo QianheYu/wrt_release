@@ -483,7 +483,7 @@ class LuCIMenuTool:
                 except Exception as e:
                     print(f"  Error updating menu.d: {e}")
         
-        if entries and has_controller and not has_menu_d:
+        if entries is not None and entries and has_controller and not has_menu_d:
             self._update_controller_entries(pkg_dir, entries)
             return
         
@@ -556,6 +556,8 @@ class LuCIMenuTool:
                     
                     new_order_str = None
                     
+                    matched_paths = set()
+                    
                     for entry in entries:
                         old_path = entry.get("path", "")
                         new_path = entry.get("new_path") or entry.get("path", "")
@@ -563,6 +565,11 @@ class LuCIMenuTool:
                         
                         if not old_path or not new_path:
                             continue
+                        
+                        if new_path == old_path and not new_order:
+                            continue
+                        
+                        path_changed = (new_path != old_path)
                         
                         if new_order:
                             new_order_str = str(new_order)
@@ -575,45 +582,49 @@ class LuCIMenuTool:
                         
                         for match in matches:
                             path_str = match
-                            parts = [p.strip().strip('"').strip("'") for p in path_str.split(',')]
+                            parts = [p.strip() for p in path_str.split(',')]
                             
-                            if len(parts) >= len(old_parts):
-                                old_first = old_parts[0]
-                                old_second = old_parts[1] if len(old_parts) > 1 else None
-                                new_first = new_parts[0]
-                                new_second = new_parts[1] if len(new_parts) > 1 else None
-                                
-                                if parts[0] == old_first:
-                                    if old_second is None or (len(parts) > 1 and parts[1] == old_second):
-                                        if new_second:
-                                            new_path_str = '"' + new_first + '", "' + new_second + '"'
-                                            if len(parts) > 2:
-                                                new_path_str += ', ' + ', '.join(parts[2:])
-                                        else:
-                                            new_path_str = '"' + new_first + '"'
-                                        
-                                        old_entry = '{' + match + '}'
-                                        new_entry = '{' + new_path_str + '}'
-                                        content = content.replace(old_entry, new_entry)
+                            if len(parts) == len(old_parts):
+                                first_match = parts[0].strip().strip('"').strip("'")
+                                if first_match == old_parts[0]:
+                                    all_match = True
+                                    for i in range(1, len(old_parts)):
+                                        part_val = parts[i].strip().strip('"').strip("'")
+                                        if part_val != old_parts[i]:
+                                            all_match = False
+                                            break
+                                    
+                                    if all_match and path_changed:
+                                        path_part = ', '.join([p.strip() for p in parts[:len(old_parts)]])
+                                        old_str = '{' + match + '}'
+                                        new_str = '{' + path_part + '}'
+                                        if old_str != new_str and old_str in content:
+                                            content = content.replace(old_str, new_str, 1)
+                                            matched_paths.add(old_path)
                     
                     if new_order_str:
-                        content = self._update_lua_order(content, new_order_str)
+                        content = self._update_lua_order(content, new_order_str, matched_paths)
                     
                     if content != original_content:
                         lua_file.write_text(content, encoding="utf-8")
                         print(f"  Updated {lua_file.name}")
                         
                 except Exception as e:
-                    print(f"  Error updating {lua_file}: {e}")
+                    print(f"  Error updating {lua_file}: {e} - {type(e)}")
 
-    def _update_lua_order(self, content: str, new_order: str) -> str:
+    def _update_lua_order(self, content: str, new_order: str, matched_paths: set = None) -> str:
         """更新Lua中entry的排序参数"""
-        entry_pattern = r'(entry\s*\(\s*\{[^}]+\}(?:,\s*(?:[^,]|,[^,])*){0,2}),\s*(\d+)'
+        if not matched_paths:
+            return content
         
         def replace_order(match):
-            prefix = match.group(1)
-            return prefix + ', ' + new_order
+            full_match = match.group(0)
+            for path in matched_paths:
+                if path in full_match:
+                    return full_match.replace(match.group(2), new_order, 1)
+            return full_match
         
+        entry_pattern = r'(entry\s*\(\s*\{[^}]+\}(?:,\s*(?:[^,]|,[^,])*){0,2}),\s*(\d+)'
         return re.sub(entry_pattern, replace_order, content)
 
     def _update_makefile_field(self, content: str, field: str, value: str) -> str:
