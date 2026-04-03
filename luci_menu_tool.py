@@ -445,7 +445,7 @@ class LuCIMenuTool:
         makefile_path = pkg_dir / "Makefile"
         menu_d_path = None
         
-        if not has_menu_d:
+        if has_menu_d:
             possible_menu_d_paths = [
                 pkg_dir / "root" / "usr" / "share" / "luci" / "menu.d",
                 pkg_dir / "luasrc" / "luci" / "menu.d",
