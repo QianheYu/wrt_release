@@ -463,96 +463,27 @@ class LuCIMenuTool:
                     
                     for entry in entries:
                         path = entry.get("path", "")
-                        new_path = entry.get("new_path", path)
                         title = entry.get("title", "")
                         order = entry.get("order", "")
                         
-                        if not path:
+                        if not path or path not in menu_data:
                             continue
                         
-                        target_path = path
-                        if path in menu_data:
-                            if new_path != path:
-                                entry_data = menu_data.pop(path)
-                                menu_data[new_path] = entry_data
-                                target_path = new_path
-                                modified = True
-                            
-                            if title and menu_data[target_path].get("title") != title:
-                                menu_data[target_path]["title"] = title
-                                modified = True
-                            if order:
-                                old_order = menu_data[target_path].get("order")
-                                if old_order is not None:
-                                    old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
-                                    if str(old_order) != str(order):
-                                        menu_data[target_path]["order"] = int(order)
-                                        modified = True
-                                else:
-                                    menu_data[target_path]["order"] = int(order)
+                        if title and menu_data[path].get("title") != title:
+                            menu_data[path]["title"] = title
+                            modified = True
+                        if order:
+                            old_order = menu_data[path].get("order")
+                            if old_order is not None:
+                                old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
+                                if str(old_order) != str(order):
+                                    menu_data[path]["order"] = int(order)
                                     modified = True
-                        else:
-                            found_old_path = None
-                            for old_path, data in menu_data.items():
-                                if data.get("title") == title:
-                                    found_old_path = old_path
-                                    break
-                            
-                            if found_old_path:
-                                entry_data = menu_data.pop(found_old_path)
-                                menu_data[new_path] = entry_data
-                                target_path = new_path
-                                modified = True
-                                
-                                if title and menu_data[target_path].get("title") != title:
-                                    menu_data[target_path]["title"] = title
-                                    modified = True
-                                if order:
-                                    old_order = menu_data[target_path].get("order")
-                                    if old_order is not None:
-                                        old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
-                                        if str(old_order) != str(order):
-                                            menu_data[target_path]["order"] = int(order)
-                                            modified = True
-                                    else:
-                                        menu_data[target_path]["order"] = int(order)
-                                        modified = True
-                            elif title:
-                                menu_data[new_path] = {
-                                    "title": title,
-                                    "order": int(order) if order else 10
-                                }
-                                modified = True
                     
                     if modified:
-                        with open(json_files[0], 'r', encoding='utf-8') as f:
-                            original_data = json.load(f)
-                        
-                        has_actual_change = False
-                        for path_key in menu_data:
-                            if path_key not in original_data:
-                                has_actual_change = True
-                                break
-                            orig_entry = original_data[path_key]
-                            new_entry = menu_data[path_key]
-                            if orig_entry.get("title") != new_entry.get("title"):
-                                has_actual_change = True
-                                break
-                            orig_order = orig_entry.get("order")
-                            new_order = new_entry.get("order")
-                            if orig_order is None and new_order is not None:
-                                pass
-                            elif orig_order is not None and new_order is None:
-                                has_actual_change = True
-                                break
-                            elif str(orig_order) != str(new_order):
-                                has_actual_change = True
-                                break
-                        
-                        if has_actual_change:
-                            with open(json_files[0], 'w', encoding='utf-8') as f:
-                                json.dump(menu_data, f, indent=2, ensure_ascii=False)
-                            print(f"  Updated menu.d JSON")
+                        with open(json_files[0], 'w', encoding='utf-8') as f:
+                            json.dump(menu_data, f, indent=2, ensure_ascii=False)
+                        print(f"  Updated menu.d JSON")
                 except Exception as e:
                     print(f"  Error updating menu.d: {e}")
         
