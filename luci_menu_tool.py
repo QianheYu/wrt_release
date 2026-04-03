@@ -463,6 +463,8 @@ class LuCIMenuTool:
                     with open(json_files[0], 'r', encoding='utf-8') as f:
                         menu_data = json.load(f)
                     
+                    modified = False
+                    
                     for entry in entries:
                         path = entry.get("path", "")
                         new_path = entry.get("new_path", path)
@@ -478,11 +480,21 @@ class LuCIMenuTool:
                                 entry_data = menu_data.pop(path)
                                 menu_data[new_path] = entry_data
                                 target_path = new_path
+                                modified = True
                             
-                            if title:
+                            if title and menu_data[target_path].get("title") != title:
                                 menu_data[target_path]["title"] = title
+                                modified = True
                             if order:
-                                menu_data[target_path]["order"] = int(order)
+                                old_order = menu_data[target_path].get("order")
+                                if old_order is not None:
+                                    old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
+                                    if str(old_order) != str(order):
+                                        menu_data[target_path]["order"] = int(order)
+                                        modified = True
+                                else:
+                                    menu_data[target_path]["order"] = int(order)
+                                    modified = True
                         else:
                             found_old_path = None
                             for old_path, data in menu_data.items():
@@ -494,20 +506,36 @@ class LuCIMenuTool:
                                 entry_data = menu_data.pop(found_old_path)
                                 menu_data[new_path] = entry_data
                                 target_path = new_path
+                                modified = True
                                 
-                                if title:
+                                if title and menu_data[target_path].get("title") != title:
                                     menu_data[target_path]["title"] = title
+                                    modified = True
                                 if order:
-                                    menu_data[target_path]["order"] = int(order)
+                                    old_order = menu_data[target_path].get("order")
+                                    if old_order is not None:
+                                        old_order = int(old_order) if isinstance(old_order, (int, str)) else old_order
+                                        if str(old_order) != str(order):
+                                            menu_data[target_path]["order"] = int(order)
+                                            modified = True
+                                    else:
+                                        menu_data[target_path]["order"] = int(order)
+                                        modified = True
                             elif title:
                                 menu_data[new_path] = {
                                     "title": title,
                                     "order": int(order) if order else 10
                                 }
+                                modified = True
                     
-                    with open(json_files[0], 'w', encoding='utf-8') as f:
-                        json.dump(menu_data, f, indent=2, ensure_ascii=False)
-                    print(f"  Updated menu.d JSON")
+                    if modified:
+                        with open(json_files[0], 'r', encoding='utf-8') as f:
+                            original_data = json.load(f)
+                        
+                        if original_data != menu_data:
+                            with open(json_files[0], 'w', encoding='utf-8') as f:
+                                json.dump(menu_data, f, indent=2, ensure_ascii=False)
+                            print(f"  Updated menu.d JSON")
                 except Exception as e:
                     print(f"  Error updating menu.d: {e}")
         
@@ -630,8 +658,16 @@ class LuCIMenuTool:
                                             content = content.replace(old_str, new_str, 1)
                                             matched_paths.add(old_path)
                     
+                    order_needs_update = False
                     if new_order_str:
-                        content = self._update_lua_order(content, new_order_str, matched_paths)
+                        for path in matched_paths:
+                            entry_pattern = r'(entry\s*\{[^}]*' + re.escape(path) + r'[^}]*\}(?:,\s*(?:[^,]|,[^,])*){0,2}),\s*(\d+)'
+                            match = re.search(entry_pattern, content)
+                            if match and match.group(1) != new_order_str:
+                                order_needs_update = True
+                                break
+                        if order_needs_update:
+                            content = self._update_lua_order(content, new_order_str, matched_paths)
                     
                     if content != original_content:
                         lua_file.write_text(content, encoding="utf-8")
